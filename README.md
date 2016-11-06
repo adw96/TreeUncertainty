@@ -1,7 +1,8 @@
 # TreeUncertainty
 “Incorporating uncertainty in tree space”
 
-Details
+**** Details **** 
+
 This repository is intended to supplement the manuscript “Uncertainty in phylogenetic tree estimates,” by Amy Willis and Rayna Bell, November 2016. 
 
 The manuscript can be accessed at arxiv:[pending]
