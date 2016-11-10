@@ -213,27 +213,18 @@ trees<- nni(base_tree)
 ### Credit: Katie Everson, http://www.kmeverson.org/blog/visualizing-tree-space-in-r
 tree.dist.matrix <- function(trees, treenames=names(trees)){
   N <- length(trees)
-  
-  if(N != length(treenames)){
-    stop("Names and tree list must be the same length")
-  }
-  
   #Create an empty matrix for results
   RF <- matrix(0, N, N)
-  
   for(i in 1:(N-1)){
-    #print(paste("Tree", i, "of", N))        
     for(j in (i+1):N){
       RFd <- RF.dist(trees[[i]],trees[[j]])
       if(RFd==0) RFd = 0.000000001
       RF[i,j]<-RF[j,i]<-RFd
     }
   }
-  
   #Row and column names
   rownames(RF) <- treenames
   colnames(RF) <- treenames
-  
   RF
 }
 
@@ -303,7 +294,11 @@ percentage_cone_path <- function(observations_matrix) {
   mean(number_negative_coordinates / dim(observations_matrix)[2] == 1)
 }
 percentage_cone_path(observations_mammals) # 0, unsurprising, since there are so many branches
-percentage_cone_path(observations_turtles) # 23%
+percentage_cone_path(observations_turtles) # 23%, that's surprising, which?
+
+table(gene_names[which(apply(X = observations_turtles, 1, function(x) sum(x < 0)) / dim(observations_turtles)[2] == 1)])
+## Not the  mitochondrial genes, as I would have thought
+## But we can see that the ODC  genes are highly different. What is that about?
 
 ## proportion of trees with same topology
 percentage_concordant <- function(observations_matrix) {
@@ -317,3 +312,14 @@ hist(apply(X = observations_mammals, 1, function(x) sum(x >= 0))/ dim(observatio
 hist(apply(X = observations_turtles, 1, function(x) sum(x >= 0))/ dim(observations_turtles)[2])
 # This is highly multivariate information as well! 
 # I wonder how we could use these histograms to get better pictures of topological differences...
+
+## what is causing the separation of the mitochondrial genes
+par(mfrow=c(1,1)); 
+percentage_concordant(observations_turtles[gene_names == "cytb", ]) # 61% same as base 
+hist(apply(X = observations_turtles[gene_names == "cytb", ], 1, function(x) sum(x >= 0))/ dim(observations_turtles)[2], xlim=c(0,1))
+table(apply(X = observations_turtles[gene_names == "cytb", ], 1, function(x) sum(x >= 0)))
+# can see that 61% are the same, 35% are 1 NNI (7 branches)
+
+hist(tree_info)
+table(apply(X = observations_mammals[tree_info > 3.5, ], 1, function(x) sum(x >= 0)))
+
