@@ -121,7 +121,7 @@ grid.arrange(q + coord_fixed(xlim = c(-qsize,qsize), ylim = c(-qsize,qsize), rat
 ## If you would like the original scripts or the original trees (there are 10,000)
 ##  please shoot me an e-mail! :)
 
-source("mapped_terrapene_trees_no_base_all.R")
+source("Data/mapped_terrapene_trees_no_base_all.R")
 gene_tree_files <- as.character(read.table("Data/TerrapeneGeneNames.txt")[,1])
 
 for (i in 1:1e7) {
@@ -135,9 +135,6 @@ for (i in 1:number_trees) observations_turtles[i, ] <- get(paste("tree", i, sep=
 apply(observations_turtles, 2, mean)
 apply(observations_turtles, 2, sd)
 
-observations_turtles[c(1,101,201),]
-get(paste("tree", 1, sep=""))
-get(paste("tree", 101, sep=""))
 turtles_pcr <- prcomp(observations_turtles, center=T, scale=T) # data are in same units 
 projections <- turtles_pcr$x
 
@@ -205,11 +202,41 @@ ggplot(turtles_df, aes(x, y, Gene, Type)) +
 ######### Section 6: "Distortions..."
 ####################################
 require(phangorn)
+require(ape)
 
 number_of_leaves <- 50
 set.seed(1)
 base_tree <- rtree(number_of_leaves, rooted=F, br = 1)
 trees<- nni(base_tree)
+
+
+### Credit: Katie Everson, http://www.kmeverson.org/blog/visualizing-tree-space-in-r
+tree.dist.matrix <- function(trees, treenames=names(trees)){
+  N <- length(trees)
+  
+  if(N != length(treenames)){
+    stop("Names and tree list must be the same length")
+  }
+  
+  #Create an empty matrix for results
+  RF <- matrix(0, N, N)
+  
+  for(i in 1:(N-1)){
+    #print(paste("Tree", i, "of", N))        
+    for(j in (i+1):N){
+      RFd <- RF.dist(trees[[i]],trees[[j]])
+      if(RFd==0) RFd = 0.000000001
+      RF[i,j]<-RF[j,i]<-RFd
+    }
+  }
+  
+  #Row and column names
+  rownames(RF) <- treenames
+  colnames(RF) <- treenames
+  
+  RF
+}
+
 subset_distances <- tree.dist.matrix(trees, treenames = paste("tree", 1:length(trees), sep=""))
 fit <- isoMDS(subset_distances, k=3) # k is the number of dim
 # write.tree(base_tree, "equal_distance_base.txt")
@@ -261,5 +288,32 @@ ggplot(contentious_data_frame, aes(x = Branch1, y = Branch2, label = Genes)) +
   geom_text(data = subset(contentious_data_frame, Branch1 < -1.7+ tree0[40]),  nudge_x = 0.4, nudge_y = 0.05) +
   theme(panel.background = element_rect(fill = 'white', colour = 'black'))
 
+
+####################################
+######### Summary statistics
+####################################
+
+## proportion of trees supporting the branches in figure 5
 mean(contentious_data_frame$Branch1 > 0)
 mean(contentious_data_frame$Branch2 > 0)
+
+## proportion of trees in cone path
+percentage_cone_path <- function(observations_matrix) {
+  number_negative_coordinates <- apply(X = observations_matrix, 1, function(x) sum(x < 0))
+  mean(number_negative_coordinates / dim(observations_matrix)[2] == 1)
+}
+percentage_cone_path(observations_mammals) # 0, unsurprising, since there are so many branches
+percentage_cone_path(observations_turtles) # 23%
+
+## proportion of trees with same topology
+percentage_concordant <- function(observations_matrix) {
+  number_nonnegative_coordinates <- apply(X = observations_matrix, 1, function(x) sum(x >= 0))
+  mean(number_nonnegative_coordinates / dim(observations_matrix)[2] == 1)
+}
+percentage_concordant(observations_mammals) # 0 
+percentage_concordant(observations_turtles) # 6% 
+# Fascinating! Let's look at the difference in the distribution
+hist(apply(X = observations_mammals, 1, function(x) sum(x >= 0))/ dim(observations_mammals)[2])
+hist(apply(X = observations_turtles, 1, function(x) sum(x >= 0))/ dim(observations_turtles)[2])
+# This is highly multivariate information as well! 
+# I wonder how we could use these histograms to get better pictures of topological differences...
