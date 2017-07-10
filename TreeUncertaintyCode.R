@@ -6,7 +6,7 @@
 
 # Folder containing everything contained in github.com/adw96/TreeUncertainty
 # Please update this according to your clone!
-mywd <- "/Users/adw96/Documents/Phylogenetics/TreeUncertainty/TreeUncertaintyAnalysis/git/TreeUncertainty/"
+mywd <- ""
 setwd(mywd)
 
 ####################################
@@ -19,6 +19,8 @@ setwd(mywd)
 ## Data/orthomam_logmaps.txt, the log map of the base tree (weighted Frechet mean) 
 ## is in Data/orthomam_wm_lm.txt and 
 ## the base tree itself is in Data/orthomam_wm_tree.txt. 
+
+
 
 ## Load in the data
 source("Data/orthomam_logmaps.txt")
@@ -44,6 +46,17 @@ sigma_squared_hat <- sum(apply((observations_mammals - mean_estimate)^2/tree_inf
 new_x <- svd(t(observations_mammals))$v[, 1:2] ## 2-dim approx of observations_mammals: 1000 x 2
 colnames(new_x) = c("x", "y")
 mammals_df <- data.frame(new_x, "Gene" = paste("Gene", 1:dim(observations_mammals)[1], sep=""), "Type" = "obs")
+
+
+##
+pca_mammals <- prcomp(observations_mammals, scale=T)
+summary(pca_mammals)
+
+pdf("SupplementaryFigures/orthomam_pcs.pdf", height = 6, width = 10)
+par(mfrow=c(1,2))
+plot(pca_mammals$x[,1:2], xlab= "First Principal Component (41%)", ylab="Second Principal Component (23%)")
+plot(pca_mammals$x[,3:4], xlab="Third Principal Component (6%)", ylab="Fourth Principal Component (5%)")
+dev.off()
 
 ## make ellipses, rotate them
 angles <- (0:100) * 2 * pi/100; unit.circle2 <- (cbind(cos(angles), sin(angles)))
@@ -71,9 +84,10 @@ gg_base <- ggplot(mammals_df, aes(x, y, Gene, Type)) + guides(fill=FALSE) +
   theme(panel.background = element_rect(fill = 'white', colour = 'black'))+ theme(legend.position="none")
 
 r <- gg_base +
-  geom_point(data = subset(mammals_df, Type == "obs"), aes(col=Gene), alpha=1) +
+  geom_point(data = subset(mammals_df, Type == "obs"), 
+             #aes(col=Gene), # can be useful to see which trees moved where
+             alpha=1) +
   guides(fill=FALSE)
-
 
 
 gg_base <- ggplot(mammals_df, aes(x, y, Gene, Type)) + guides(fill=FALSE) +
@@ -84,7 +98,8 @@ df_mds <- data.frame("x"= bhv_fit$points[,1], "y"= bhv_fit$points[,2], "Gene" = 
 tt <- ggplot(df_mds, aes(x,y,Gene)) + guides(fill=FALSE) +
   xlab("First MDS Coordinate") + ylab("Second MDS Coordinate") +
   theme(panel.background = element_rect(fill = 'white', colour = 'black'))+ theme(legend.position="none") + 
-  geom_point(aes(col=Gene), alpha=1)
+  # geom_point(aes(col=Gene), alpha=1) # for colour version
+  geom_point(alpha=1)
 
 #### Figure 1!
 require(gridExtra)
@@ -92,6 +107,20 @@ require(grid)
 require(lattice)
 grid.arrange(tt + coord_fixed(xlim = c(-10,10), ylim = c(-10,10), ratio = 1), 
              r + coord_fixed(ratio = 1), ncol=2)
+
+## Look at the trees
+require(ape)
+mammal_trees <- read.tree("Data/OrthoMaM_trees.txt")
+source("https://bioconductor.org/biocLite.R")
+biocLite("ggtree")
+library("ggtree")
+mammal_trees_figure <- ggtree(mammal_trees[[3]]) + geom_tree() + theme_tree() +
+  geom_tiplab(size=2)
+
+grid.arrange(mammal_trees_figure, tt + coord_fixed(xlim = c(-10,10), ylim = c(-10,10), ratio = 1), 
+             r + coord_fixed(ratio = 1), 
+             layout_matrix = rbind(c(2,3),
+                                   c(1,1)))
 
 
 q <- gg_base +
@@ -112,6 +141,8 @@ s <-  ggplot(data1, aes(tree_info, deviations2)) +
 qsize = 1.3
 grid.arrange(q + coord_fixed(xlim = c(-qsize,qsize), ylim = c(-qsize,qsize), ratio = 1), 
              s + coord_fixed(xlim = c(0,5.5), ylim = c(0,3.5), ratio = 5.5/3.5), ncol=2)
+
+
 
 ####################################
 ######### Section 5.2
@@ -190,13 +221,32 @@ turtles_df$Gene <- tmp
 levels(turtles_df$Gene)[levels(turtles_df$Gene)!="Cyt-b"] <- paste("N:", levels(turtles_df$Gene)[levels(turtles_df$Gene)!="Cyt-b"] )
 levels(turtles_df$Gene)[levels(turtles_df$Gene)=="Cyt-b"] <- "M: Cyt-b"
 
+summary(prcomp(observations_turtles))
 ## Figure 3
+
 xlim1 <- 0.25
-ggplot(turtles_df, aes(x, y, Gene, Type)) +
+turtles_plot <- ggplot(turtles_df, aes(x, y, Gene, Type)) +
   geom_point(data = subset(turtles_df, Type == "obs"), aes(x,y, col=Gene)) + 
   geom_polygon(data = subset(turtles_df, Type == "ellipse"), aes(col=Gene, fill = Gene), alpha=0.1) +
   xlab("First Principal Component") + ylab("Second Principal Component")
 
+vim_tree <- read.tree("Data/TerrapeneGeneTreeVim.txt")
+vim_tree_figure <- ggtree(vim_tree) + 
+  geom_tree() + theme_tree() +
+  geom_tiplab(aes(x=branch), hjust=1, vjust=-0.2)
+grid.arrange(turtles_plot,
+             vim_tree_figure, 
+             layout_matrix = rbind(c(1,1),
+                                   c(2,2)))
+
+
+pca_t <- prcomp(observations_turtles, scale=T)
+summary(pca_t)
+pdf("SupplementaryFigures/turtles_pcs.pdf", height = 6, width = 10)
+par(mfrow=c(1,2))
+plot(pca_t$x[,1:2], xlab= "First Principal Component (70%)", ylab="Second Principal Component (9%)", col=turtles_df$Gene)
+plot(pca_t$x[,3:4], xlab="Third Principal Component (8%)", ylab="Fourth Principal Component (6%)", col=turtles_df$Gene)
+dev.off()
 
 ####################################
 ######### Section 6: "Distortions..."
